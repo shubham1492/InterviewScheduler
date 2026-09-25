@@ -21,6 +21,8 @@ export const PublicBookingView = () => {
     setSelectedDate, 
     selectedSlot, 
     setSelectedSlot,
+    customSlotStartTime,
+    setCustomSlotStartTime,
     duration,
     setDuration,
     timezone,
@@ -29,8 +31,6 @@ export const PublicBookingView = () => {
     slotBookings,
     weeklySchedule
   } = useApp();
-
-  const [currentMonthIndex, setCurrentMonthIndex] = useState(7); // August 2026
 
   const selectedDayName = useMemo(() => getDayNameFromDateStr(selectedDate), [selectedDate]);
   const isDayActive = useMemo(() => {
@@ -45,8 +45,8 @@ export const PublicBookingView = () => {
     const dayConfig = weeklySchedule.find(d => d.day === selectedDayName);
 
     if (!dayConfig || dayConfig.active === false) return [];
-    return generateSlotsFromSchedule(dayConfig, duration);
-  }, [selectedDate, selectedDayName, duration, weeklySchedule]);
+    return generateSlotsFromSchedule(dayConfig, duration, customSlotStartTime);
+  }, [selectedDate, selectedDayName, duration, customSlotStartTime, weeklySchedule]);
 
   // Compute available vs booked slots for the selected date
   const { bookedSlots, availableSlots } = useMemo(() => {
@@ -76,19 +76,28 @@ export const PublicBookingView = () => {
     }
   }, [availableSlots, selectedSlot, setSelectedSlot]);
 
-  // Calendar days grid generator for August 2026
+  // Dynamic Calendar days grid for current year & month
   const calendarDays = useMemo(() => {
-    const days = [
-      { day: 26, isCurrentMonth: false, status: 'unavailable' },
-      { day: 27, isCurrentMonth: false, status: 'unavailable' },
-      { day: 28, isCurrentMonth: false, status: 'unavailable' },
-      { day: 29, isCurrentMonth: false, status: 'unavailable' },
-      { day: 30, isCurrentMonth: false, status: 'unavailable' },
-      { day: 31, isCurrentMonth: false, status: 'unavailable' },
-    ];
+    const today = new Date();
+    const [selY, selM] = selectedDate ? selectedDate.split('-').map(Number) : [today.getFullYear(), today.getMonth() + 1];
+    
+    const year = selY || today.getFullYear();
+    const month = selM ? selM - 1 : today.getMonth();
+    
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const firstDayIndex = new Date(year, month, 1).getDay();
 
-    for (let day = 1; day <= 31; day++) {
-      const dateStr = `2026-08-${day < 10 ? '0' + day : day}`;
+    const days = [];
+    
+    for (let i = 0; i < firstDayIndex; i++) {
+      days.push({ day: '', isCurrentMonth: false, status: 'unavailable' });
+    }
+
+    const mm = String(month + 1).padStart(2, '0');
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dd = String(day).padStart(2, '0');
+      const dateStr = `${year}-${mm}-${dd}`;
       const dayName = getDayNameFromDateStr(dateStr);
       const dayConfig = weeklySchedule ? weeklySchedule.find(d => d.day === dayName) : null;
       const isAvailableDay = dayConfig ? dayConfig.active : true;
@@ -96,7 +105,7 @@ export const PublicBookingView = () => {
       if (!isAvailableDay) {
         days.push({ day, isCurrentMonth: true, status: 'unavailable', dateStr });
       } else {
-        const daySlots = generateSlotsFromSchedule(dayConfig, duration);
+        const daySlots = generateSlotsFromSchedule(dayConfig, duration, customSlotStartTime);
         let bookedCount = 0;
         daySlots.forEach((slot) => {
           if (slotBookings[`${dateStr}_${slot}`]) bookedCount++;
@@ -117,7 +126,7 @@ export const PublicBookingView = () => {
     }
 
     return days;
-  }, [duration, weeklySchedule, slotBookings]);
+  }, [selectedDate, duration, customSlotStartTime, weeklySchedule, slotBookings]);
 
   const selectedSlotIST = useMemo(() => {
     return selectedSlot ? convertTimeToIST(selectedSlot, timezone, selectedDate) : '';

@@ -28,6 +28,8 @@ export const CandidatePortalView = () => {
     setSelectedDate, 
     selectedSlot, 
     setSelectedSlot,
+    customSlotStartTime,
+    setCustomSlotStartTime,
     duration,
     setDuration,
     timezone,
@@ -40,25 +42,33 @@ export const CandidatePortalView = () => {
     weeklySchedule
   } = useApp();
 
-  // Generate selectable dates for August 2026 based on weekly schedule
+  const [isCustomDurationMode, setIsCustomDurationMode] = useState(false);
+  const [customMinsInput, setCustomMinsInput] = useState('30');
+  const [customStartTimeInput, setCustomStartTimeInput] = useState('');
+
+  // Generate selectable dates starting from TODAY for the current month and next 60 days
   const availableDatesList = useMemo(() => {
     const dates = [];
-    for (let day = 1; day <= 31; day++) {
-      const dateStr = `2026-08-${day < 10 ? '0' + day : day}`;
+    const today = new Date();
+    for (let i = 0; i < 60; i++) {
+      const d = new Date(today);
+      d.setDate(today.getDate() + i);
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      const dateStr = `${yyyy}-${mm}-${dd}`;
       const dayName = getDayNameFromDateStr(dateStr);
-      const dayConfig = weeklySchedule ? weeklySchedule.find(d => d.day === dayName) : null;
+      const dayConfig = weeklySchedule ? weeklySchedule.find(s => s.day === dayName) : null;
       const isAvailable = dayConfig ? dayConfig.active : true;
 
       if (isAvailable) {
-        const [y, m, dNum] = dateStr.split('-').map(Number);
-        const dateObj = new Date(y, m - 1, dNum);
-        const label = dateObj.toLocaleDateString('en-US', {
+        const label = d.toLocaleDateString('en-US', {
           weekday: 'long',
           month: 'short',
           day: 'numeric',
           year: 'numeric'
         });
-        dates.push({ dateStr, label, day });
+        dates.push({ dateStr, label, day: d.getDate() });
       }
     }
     return dates;
@@ -71,14 +81,14 @@ export const CandidatePortalView = () => {
     return dayConfig ? dayConfig.active : true;
   }, [selectedDate, selectedDayName, weeklySchedule]);
 
-  // Generate daily slots dynamically based on selected date & host's weekly schedule
+  // Generate daily slots dynamically based on selected date, duration & custom start time
   const allDailySlots = useMemo(() => {
     if (!selectedDate || !weeklySchedule) return [];
     const dayConfig = weeklySchedule.find(d => d.day === selectedDayName);
 
     if (!dayConfig || dayConfig.active === false) return [];
-    return generateSlotsFromSchedule(dayConfig, duration);
-  }, [selectedDate, selectedDayName, duration, weeklySchedule]);
+    return generateSlotsFromSchedule(dayConfig, duration, customSlotStartTime);
+  }, [selectedDate, selectedDayName, duration, customSlotStartTime, weeklySchedule]);
 
   // Compute booked vs open slots for selectedDate
   const { bookedSlots, availableSlots } = useMemo(() => {
@@ -204,19 +214,31 @@ export const CandidatePortalView = () => {
               </select>
             </div>
 
-            {/* 3. Slot Duration Selector */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center space-x-1.5">
-                <Clock className="w-3.5 h-3.5 text-purple-500" />
-                <span>Duration</span>
-              </label>
-              <div className="grid grid-cols-3 gap-1.5">
+            {/* 3. Slot Duration & Custom Range Selector */}
+            <div className="space-y-1.5 md:col-span-3">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center space-x-1.5">
+                  <Clock className="w-3.5 h-3.5 text-purple-500" />
+                  <span>Session Duration & Custom Time Range</span>
+                </label>
+                {isCustomDurationMode && (
+                  <span className="text-[10px] font-bold text-purple-600 dark:text-purple-400">
+                    Custom Mode Active
+                  </span>
+                )}
+              </div>
+
+              <div className="grid grid-cols-4 gap-1.5">
                 {['30 min', '45 min', '60 min'].map((d) => (
                   <button
                     key={d}
-                    onClick={() => setDuration(d)}
-                    className={`py-2 rounded-xl text-xs font-bold border transition-all ${
-                      duration === d
+                    type="button"
+                    onClick={() => {
+                      setDuration(d);
+                      setIsCustomDurationMode(false);
+                    }}
+                    className={`py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                      duration === d && !isCustomDurationMode
                         ? 'bg-purple-600 text-white border-purple-600 shadow-md shadow-purple-500/20 scale-[1.02]'
                         : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800'
                     }`}
@@ -224,7 +246,85 @@ export const CandidatePortalView = () => {
                     {d}
                   </button>
                 ))}
+
+                <button
+                  type="button"
+                  onClick={() => setIsCustomDurationMode(true)}
+                  className={`py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                    isCustomDurationMode
+                      ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white border-purple-500 shadow-md shadow-purple-500/20 scale-[1.02]'
+                      : 'bg-white dark:bg-slate-900 text-purple-600 dark:text-purple-400 border-purple-200 dark:border-purple-900/60 hover:bg-purple-50 dark:hover:bg-purple-950/40'
+                  }`}
+                >
+                  ⚡ Custom...
+                </button>
               </div>
+
+              {/* Custom Duration & Custom Time Range Sub-Panel */}
+              {isCustomDurationMode && (
+                <div className="p-3.5 rounded-2xl bg-purple-50/70 dark:bg-purple-950/30 border border-purple-200/80 dark:border-purple-900/60 space-y-3 animate-in fade-in zoom-in-95 duration-150 mt-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    
+                    {/* Custom Duration Minutes Input */}
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                        Custom Duration (Minutes)
+                      </label>
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="number"
+                          min="5"
+                          max="240"
+                          step="5"
+                          value={customMinsInput}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setCustomMinsInput(val);
+                            if (val && !isNaN(val)) setDuration(`${val} min`);
+                          }}
+                          placeholder="e.g. 15, 20, 75"
+                          className="w-full px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-purple-300 dark:border-purple-800 text-xs font-bold text-purple-700 dark:text-purple-300 outline-none focus:ring-2 focus:ring-purple-500"
+                        />
+                        <span className="text-xs font-bold text-slate-500">mins</span>
+                      </div>
+                    </div>
+
+                    {/* Custom Specific Start Time (e.g. 9:15 AM) */}
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                        Custom Slot Start Time (e.g. 09:15 AM)
+                      </label>
+                      <input
+                        type="time"
+                        value={customStartTimeInput}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setCustomStartTimeInput(val);
+                          if (val) {
+                            const [hStr, mStr] = val.split(':');
+                            let h = parseInt(hStr, 10);
+                            const period = h >= 12 ? 'PM' : 'AM';
+                            let h12 = h % 12;
+                            if (h12 === 0) h12 = 12;
+                            const formattedH = h12 < 10 ? `0${h12}` : `${h12}`;
+                            const timeStr12h = `${formattedH}:${mStr} ${period}`;
+                            setCustomSlotStartTime(timeStr12h);
+                            setSelectedSlot(timeStr12h);
+                          } else {
+                            setCustomSlotStartTime('');
+                          }
+                        }}
+                        className="w-full px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-purple-300 dark:border-purple-800 text-xs font-bold text-purple-700 dark:text-purple-300 outline-none focus:ring-2 focus:ring-purple-500 cursor-pointer"
+                      />
+                    </div>
+
+                  </div>
+
+                  <p className="text-[10px] text-purple-600 dark:text-purple-300 italic">
+                    💡 Example: Select custom duration (e.g., 60 mins) and set start time to 09:15 AM to book a custom 9:15 AM – 10:15 AM slot!
+                  </p>
+                </div>
+              )}
             </div>
 
           </div>

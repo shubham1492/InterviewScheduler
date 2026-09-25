@@ -86,10 +86,19 @@ export const initialSlotBookings = {
 };
 
 export const AppProvider = ({ children }) => {
+  const getTodayStr = () => {
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
   const [currentView, setCurrentView] = useState('candidate-portal');
   const [isDarkMode, setIsDarkMode] = useState(true);
-  const [selectedDate, setSelectedDate] = useState('2026-08-13');
+  const [selectedDate, setSelectedDate] = useState(getTodayStr());
   const [selectedSlot, setSelectedSlot] = useState('10:30 AM');
+  const [customSlotStartTime, setCustomSlotStartTime] = useState('');
   const [duration, setDuration] = useState('30 min');
   const [timezone, setTimezone] = useState('Eastern Time (US & Canada)');
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
@@ -451,6 +460,8 @@ export const AppProvider = ({ children }) => {
         setSelectedDate,
         selectedSlot,
         setSelectedSlot,
+        customSlotStartTime,
+        setCustomSlotStartTime,
         duration,
         setDuration,
         timezone,

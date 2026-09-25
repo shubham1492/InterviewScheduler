@@ -349,10 +349,12 @@ function minutesToTime12h(mins) {
 /**
  * Generates dynamic time slots for a day based on active working hours, duration, and break blocks
  */
-export function generateSlotsFromSchedule(daySchedule, durationStr = '30 min') {
+export function generateSlotsFromSchedule(daySchedule, durationStr = '30 min', customStartTime = null) {
   if (!daySchedule || daySchedule.active === false) return [];
 
-  const durationMins = parseInt(durationStr, 10) || 30;
+  let durationMins = parseInt(durationStr, 10);
+  if (isNaN(durationMins) || durationMins <= 0) durationMins = 30;
+
   let startMins = timeToMinutes(daySchedule.startTime);
   let endMins = timeToMinutes(daySchedule.endTime);
 
@@ -372,7 +374,25 @@ export function generateSlotsFromSchedule(daySchedule, durationStr = '30 min') {
     .filter(b => b.start > 0 || b.end > 0);
 
   const slots = [];
-  for (let current = startMins; current + durationMins <= endMins; current += durationMins) {
+
+  // Add custom start time slot if provided (e.g., "09:15 AM")
+  if (customStartTime) {
+    const customStartMins = timeToMinutes(customStartTime);
+    if (customStartMins >= startMins && (customStartMins + durationMins) <= endMins) {
+      const slotStr = minutesToTime12h(customStartMins);
+      const isOverlappingBreak = breakRanges.some(
+        brk => (customStartMins < brk.end && (customStartMins + durationMins) > brk.start)
+      );
+      if (!isOverlappingBreak) {
+        slots.push(slotStr);
+      }
+    }
+  }
+
+  // Step size adapts based on duration (15 min for fine custom steps, or durationMins)
+  const step = durationMins <= 15 ? 15 : (durationMins % 15 === 0 ? 15 : durationMins);
+
+  for (let current = startMins; current + durationMins <= endMins; current += step) {
     const slotEnd = current + durationMins;
     
     // Check overlap with breaks
@@ -381,11 +401,14 @@ export function generateSlotsFromSchedule(daySchedule, durationStr = '30 min') {
     );
 
     if (!isOverlappingBreak) {
-      slots.push(minutesToTime12h(current));
+      const slotStr = minutesToTime12h(current);
+      if (!slots.includes(slotStr)) {
+        slots.push(slotStr);
+      }
     }
   }
 
-  return slots;
+  return slots.sort((a, b) => timeToMinutes(a) - timeToMinutes(b));
 }
 
 /**
