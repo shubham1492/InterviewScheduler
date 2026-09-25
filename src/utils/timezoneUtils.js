@@ -411,6 +411,42 @@ export function generateSlotsFromSchedule(daySchedule, durationStr = '30 min', c
   return slots.sort((a, b) => timeToMinutes(a) - timeToMinutes(b));
 }
 
+export { timeToMinutes, minutesToTime12h };
+
+/**
+ * Checks whether a proposed time slot (e.g. "09:30 AM" for "60 min") overlaps with ANY existing booked slot for a given date.
+ */
+export function checkSlotOverlap(slotTime, durationStr, dateStr, slotBookings) {
+  if (!slotTime || !slotBookings) return { isOverlapped: false };
+
+  const slotStartMins = timeToMinutes(slotTime);
+  let slotDurationMins = parseInt(durationStr, 10);
+  if (isNaN(slotDurationMins) || slotDurationMins <= 0) slotDurationMins = 30;
+  const slotEndMins = slotStartMins + slotDurationMins;
+
+  const datePrefix = `${dateStr}_`;
+  for (const [key, bookingInfo] of Object.entries(slotBookings)) {
+    if (key.startsWith(datePrefix)) {
+      const bookedSlotStr = key.substring(datePrefix.length);
+      const bookedStartMins = timeToMinutes(bookedSlotStr);
+      let bookedDurationMins = parseInt(bookingInfo.duration || '30 min', 10);
+      if (isNaN(bookedDurationMins) || bookedDurationMins <= 0) bookedDurationMins = 30;
+      const bookedEndMins = bookedStartMins + bookedDurationMins;
+
+      // Overlap condition: proposed start < booked end AND proposed end > booked start
+      if (slotStartMins < bookedEndMins && slotEndMins > bookedStartMins) {
+        return {
+          isOverlapped: true,
+          overlappingBooking: bookingInfo,
+          bookedSlotStr
+        };
+      }
+    }
+  }
+
+  return { isOverlapped: false };
+}
+
 /**
  * Reliably returns the day of week name (e.g. 'Monday', 'Tuesday') for a YYYY-MM-DD date string across all timezones
  */
@@ -423,6 +459,7 @@ export function getDayNameFromDateStr(dateStr) {
   const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   return dayNames[dateObj.getDay()];
 }
+
 
 
 

@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
-import { convertTimeToIST, formatDualTime, TIMEZONE_OPTIONS, getShortTimezoneCode, generateSlotsFromSchedule, getDayNameFromDateStr } from '../utils/timezoneUtils';
+import { convertTimeToIST, formatDualTime, TIMEZONE_OPTIONS, getShortTimezoneCode, generateSlotsFromSchedule, getDayNameFromDateStr, checkSlotOverlap } from '../utils/timezoneUtils';
 import { DatePickerControl } from '../components/DatePickerControl';
 import { 
   Calendar as CalendarIcon, 
@@ -90,7 +90,7 @@ export const CandidatePortalView = () => {
     return generateSlotsFromSchedule(dayConfig, duration, customSlotStartTime);
   }, [selectedDate, selectedDayName, duration, customSlotStartTime, weeklySchedule]);
 
-  // Compute booked vs open slots for selectedDate
+  // Compute booked vs open slots for selectedDate WITH STRICT OVERLAP PREVENTION
   const { bookedSlots, availableSlots } = useMemo(() => {
     const booked = [];
     const available = [];
@@ -98,14 +98,28 @@ export const CandidatePortalView = () => {
     allDailySlots.forEach((slot) => {
       const key = `${selectedDate}_${slot}`;
       if (slotBookings[key]) {
-        booked.push({ slot, info: slotBookings[key] });
+        booked.push({ slot, info: slotBookings[key], isDirect: true });
       } else {
-        available.push(slot);
+        const overlapResult = checkSlotOverlap(slot, duration, selectedDate, slotBookings);
+        if (overlapResult.isOverlapped) {
+          booked.push({
+            slot,
+            info: {
+              ...overlapResult.overlappingBooking,
+              name: `${overlapResult.overlappingBooking.name || 'Candidate'} (Overlapped)`,
+              role: `Occupied by ${overlapResult.bookedSlotStr}`
+            },
+            isDirect: false,
+            overlapsWith: overlapResult.bookedSlotStr
+          });
+        } else {
+          available.push(slot);
+        }
       }
     });
 
     return { bookedSlots: booked, availableSlots: available };
-  }, [selectedDate, allDailySlots, slotBookings]);
+  }, [selectedDate, duration, allDailySlots, slotBookings]);
 
   // Auto-select first open slot when date/schedule/duration changes if selectedSlot is invalid
   useEffect(() => {
