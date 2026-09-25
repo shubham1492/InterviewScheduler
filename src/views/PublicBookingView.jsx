@@ -333,18 +333,18 @@ export const PublicBookingView = () => {
             </select>
           </div>
 
-          {/* Flexible Slot Duration Selector (30 min, 45 min, 60 min) */}
+          {/* Flexible Slot Duration Selector (15 min, 30 min, 45 min, 60 min) */}
           <div className="space-y-2">
             <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center space-x-1.5">
               <Clock className="w-3.5 h-3.5 text-purple-500" />
               <span>Slot Duration</span>
             </label>
-            <div className="grid grid-cols-3 gap-2">
-              {['30 min', '45 min', '60 min'].map((d) => (
+            <div className="grid grid-cols-4 gap-1.5">
+              {['15 min', '30 min', '45 min', '60 min'].map((d) => (
                 <button
                   key={d}
                   onClick={() => setDuration(d)}
-                  className={`py-2 rounded-xl text-xs font-bold border transition-all ${
+                  className={`py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
                     duration === d
                       ? 'bg-purple-600 text-white border-purple-600 shadow-md shadow-purple-500/20 scale-[1.02]'
                       : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800'

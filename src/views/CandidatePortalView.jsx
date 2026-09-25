@@ -242,14 +242,15 @@ export const CandidatePortalView = () => {
                 )}
               </div>
 
-              <div className="grid grid-cols-4 gap-1.5">
-                {['30 min', '45 min', '60 min'].map((d) => (
+              <div className="grid grid-cols-5 gap-1.5">
+                {['15 min', '30 min', '45 min', '60 min'].map((d) => (
                   <button
                     key={d}
                     type="button"
                     onClick={() => {
                       setDuration(d);
                       setIsCustomDurationMode(false);
+                      setCustomSlotStartTime('');
                     }}
                     className={`py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
                       duration === d && !isCustomDurationMode
@@ -274,39 +275,24 @@ export const CandidatePortalView = () => {
                 </button>
               </div>
 
-              {/* Custom Duration & Custom Time Range Sub-Panel */}
+              {/* MS Teams-Style Meeting Time Range Picker & Custom Duration */}
               {isCustomDurationMode && (
                 <div className="p-3.5 rounded-2xl bg-purple-50/70 dark:bg-purple-950/30 border border-purple-200/80 dark:border-purple-900/60 space-y-3 animate-in fade-in zoom-in-95 duration-150 mt-2">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    
-                    {/* Custom Duration Minutes Input */}
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
-                        Custom Duration (Minutes)
-                      </label>
-                      <div className="flex items-center space-x-2">
-                        <input
-                          type="number"
-                          min="5"
-                          max="240"
-                          step="5"
-                          value={customMinsInput}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            setCustomMinsInput(val);
-                            if (val && !isNaN(val)) setDuration(`${val} min`);
-                          }}
-                          placeholder="e.g. 15, 20, 75"
-                          className="w-full px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-purple-300 dark:border-purple-800 text-xs font-bold text-purple-700 dark:text-purple-300 outline-none focus:ring-2 focus:ring-purple-500"
-                        />
-                        <span className="text-xs font-bold text-slate-500">mins</span>
-                      </div>
-                    </div>
+                  <div className="flex items-center justify-between border-b border-purple-200/60 dark:border-purple-900/40 pb-2">
+                    <span className="text-xs font-extrabold text-purple-900 dark:text-purple-200 flex items-center space-x-1.5">
+                      <span>📅 MS Teams Meeting Range Picker</span>
+                    </span>
+                    <span className="text-[10px] font-bold text-purple-600 dark:text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded">
+                      Auto-Calculates Duration & Slot
+                    </span>
+                  </div>
 
-                    {/* Custom Specific Start Time (e.g. 9:15 AM) */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    
+                    {/* 1. Start Time Picker (e.g. 01:30 AM / 09:15 AM) */}
                     <div className="space-y-1">
                       <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
-                        Custom Slot Start Time (e.g. 09:15 AM)
+                        Start Time
                       </label>
                       <input
                         type="time"
@@ -332,10 +318,59 @@ export const CandidatePortalView = () => {
                       />
                     </div>
 
+                    {/* 2. End Time Picker (e.g. 02:00 AM / 10:15 AM) */}
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                        End Time (Optional)
+                      </label>
+                      <input
+                        type="time"
+                        onChange={(e) => {
+                          const endVal = e.target.value;
+                          if (endVal && customStartTimeInput) {
+                            const [h1, m1] = customStartTimeInput.split(':').map(Number);
+                            const [h2, m2] = endVal.split(':').map(Number);
+                            const startM = h1 * 60 + m1;
+                            const endM = h2 * 60 + m2;
+                            const diff = endM - startM;
+                            if (diff > 0) {
+                              setCustomMinsInput(diff.toString());
+                              setDuration(`${diff} min`);
+                            }
+                          }
+                        }}
+                        className="w-full px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-purple-300 dark:border-purple-800 text-xs font-bold text-purple-700 dark:text-purple-300 outline-none focus:ring-2 focus:ring-purple-500 cursor-pointer"
+                      />
+                    </div>
+
+                    {/* 3. Duration Mins */}
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                        Duration (Minutes)
+                      </label>
+                      <div className="flex items-center space-x-1">
+                        <input
+                          type="number"
+                          min="5"
+                          max="240"
+                          step="5"
+                          value={customMinsInput}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setCustomMinsInput(val);
+                            if (val && !isNaN(val)) setDuration(`${val} min`);
+                          }}
+                          placeholder="15, 30, 45, 60"
+                          className="w-full px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-purple-300 dark:border-purple-800 text-xs font-bold text-purple-700 dark:text-purple-300 outline-none focus:ring-2 focus:ring-purple-500"
+                        />
+                        <span className="text-xs font-bold text-slate-500">min</span>
+                      </div>
+                    </div>
+
                   </div>
 
                   <p className="text-[10px] text-purple-600 dark:text-purple-300 italic">
-                    💡 Example: Select custom duration (e.g., 60 mins) and set start time to 09:15 AM to book a custom 9:15 AM – 10:15 AM slot!
+                    ✨ Teams-Style Experience: Pick Start Time & End Time or set custom duration (15 min, 30 min, etc.).
                   </p>
                 </div>
               )}
